@@ -4,6 +4,8 @@ import os
 import webbrowser
 import pandas as pd
 import plotly.express as px
+from dateutil.relativedelta import relativedelta
+import itertools
 
 
 def get_client():
@@ -41,14 +43,26 @@ def authorize_client():
     return client
 
 
-@st.cache
-def get_data(client, workspace_gid):
-    tasks_iter = client.tasks.find_all(dict(
-        assignee=me['gid'],
+def all_tasks_iter(client, assignee_id, workspace_gid):
+    assigned_tasks_iter = client.tasks.find_all(dict(
+        assignee=assignee_id,
         workspace=workspace_gid,
         limit=100,
         opt_fields=['name', 'completed', 'created_at', 'completed_at'],
     ))
+    yield from assigned_tasks_iter
+    unassigned_tasks_iter = client.tasks.find_all(dict(
+        assignee='null',
+        workspace=workspace_gid,
+        limit=100,
+        opt_fields=['name', 'completed', 'created_at', 'completed_at'],
+    ))
+    yield from unassigned_tasks_iter
+
+
+@st.cache
+def get_data(client, assignee_id, workspace_gid):
+    tasks_iter = all_tasks_iter(client, assignee_id, workspace_gid)
 
     data = pd.DataFrame(tasks_iter)
     data['created_at'] = pd.to_datetime(data['created_at'])
@@ -74,9 +88,17 @@ if __name__ == '__main__':
         format_func=lambda gid: workspaces_map[gid],
     )
 
-    data, daily_counts = get_data(client, workspace_gid)
-    st.write(data)
+    data, daily_counts = get_data(client, me['gid'], workspace_gid)
+    date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
+    date_low, date_high = st.slider(
+        label='Date Range',
+        min_value=date_min,
+        max_value=date_max,
+        value=(date_max - relativedelta(months=1), date_max)
+    )
+    #st.write(data)
 
-    fig = px.line(daily_counts)
+    fig = px.line(daily_counts[(date_low <= daily_counts.index) & (daily_counts.index <= date_max)])
     st.plotly_chart(fig)
+
 
