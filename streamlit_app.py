@@ -20,7 +20,7 @@ def get_client():
     return client
 
 
-@st.cache
+@st.cache(allow_output_mutation=True)
 def authorize_client():
     client = get_client()
 
@@ -43,7 +43,7 @@ def authorize_client():
     return client
 
 
-def all_tasks_iter(client, assignee_id, workspace_gid):
+def all_tasks_iter(client, workspace_gid):
     # PremiumOnlyError: Payment Required: Search is only available to premium users.
     # assigned_tasks_iter = client.tasks.search_tasks_for_workspace(
     #     workspace_gid=workspace_gid,
@@ -53,22 +53,27 @@ def all_tasks_iter(client, assignee_id, workspace_gid):
     #         opt_fields=['name', 'completed', 'created_at', 'completed_at'],
     #     )
     # )
-    assigned_tasks_iter = client.tasks.find_all(dict(
-        assignee=assignee_id,
-        workspace=workspace_gid,
-        limit=100,
-        opt_fields=['name', 'completed', 'created_at', 'completed_at'],
-    ))
-    return assigned_tasks_iter
+    projects = client.projects.get_projects(dict(workspace=workspace_gid, limit=100))
+    for project in projects:
+        project_gid = project['gid']
+        with st.spinner(f"Collecting tasks from project {project['name']}"):
+            params = {
+                'project': project_gid,
+                'limit': 100,
+                'opt_fields': ['name', 'completed', 'created_at', 'completed_at', 'assignee']
+            }
+            tasks_iter = client.tasks.find_all(params)
+            yield from tasks_iter
 
 
-@st.cache
-def get_data(client, assignee_id, workspace_gid):
-    tasks_iter = all_tasks_iter(client, assignee_id, workspace_gid)
+@st.cache(show_spinner=False)
+def get_data(client, workspace_gid):
+    tasks_iter = all_tasks_iter(client, workspace_gid)
 
     data = pd.DataFrame(tasks_iter)
     data['created_at'] = pd.to_datetime(data['created_at'])
     data['completed_at'] = pd.to_datetime(data['completed_at'])
+    # st.write(data)
 
     daily_counts = data.groupby(pd.to_datetime(data.completed_at.dt.date))['gid'].count()
     daily_counts = daily_counts.resample('D').mean()
@@ -90,7 +95,7 @@ if __name__ == '__main__':
         format_func=lambda gid: workspaces_map[gid],
     )
 
-    data, daily_counts = get_data(client, me['gid'], workspace_gid)
+    data, daily_counts = get_data(client, workspace_gid)
     date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
     date_low, date_high = st.slider(
         label='Date Range',
