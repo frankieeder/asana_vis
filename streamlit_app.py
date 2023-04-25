@@ -44,20 +44,22 @@ def authorize_client():
 
 
 def all_tasks_iter(client, assignee_id, workspace_gid):
+    # PremiumOnlyError: Payment Required: Search is only available to premium users.
+    # assigned_tasks_iter = client.tasks.search_tasks_for_workspace(
+    #     workspace_gid=workspace_gid,
+    #     params=dict(
+    #         assignee_any=assignee_id,
+    #         limit=100,
+    #         opt_fields=['name', 'completed', 'created_at', 'completed_at'],
+    #     )
+    # )
     assigned_tasks_iter = client.tasks.find_all(dict(
         assignee=assignee_id,
         workspace=workspace_gid,
         limit=100,
         opt_fields=['name', 'completed', 'created_at', 'completed_at'],
     ))
-    yield from assigned_tasks_iter
-    unassigned_tasks_iter = client.tasks.find_all(dict(
-        assignee='null',
-        workspace=workspace_gid,
-        limit=100,
-        opt_fields=['name', 'completed', 'created_at', 'completed_at'],
-    ))
-    yield from unassigned_tasks_iter
+    return assigned_tasks_iter
 
 
 @st.cache
