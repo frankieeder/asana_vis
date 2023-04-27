@@ -1,45 +1,20 @@
 import streamlit as st
+from streamlit_js_eval import get_page_location
 import asana
-import os
-import webbrowser
 import pandas as pd
 import plotly.express as px
 from dateutil.relativedelta import relativedelta
-import itertools
 
 
-def get_client():
-    from dotenv import load_dotenv
+def init_client():
+    url = get_page_location()['origin']
+    # st.write(url)
 
-    load_dotenv()
     client = asana.Client.oauth(
-        client_id=os.getenv('ASANA_CLIENT_ID'),
-        client_secret=os.getenv('ASANA_CLIENT_SECRET'),
-        redirect_uri='urn:ietf:wg:oauth:2.0:oob'
+        client_id=st.secrets.asana.client_id,
+        client_secret=st.secrets.asana.client_secret,
+        redirect_uri=url, # 'http://localhost:8501/'
     )
-    return client
-
-
-@st.cache(allow_output_mutation=True)
-def authorize_client():
-    client = get_client()
-
-    url, state = client.session.authorization_url()
-    webbrowser.open(url)
-    # r = requests.head(url)
-    # response = urllib.request.urlopen(url)
-    # headers = response.info()
-    # data = response.read()
-    #
-    # if request.params['state'] == state:
-    #   token = client.session.fetch_token(code=request.params['code'])
-    #   # ...
-    # else:
-    #   # error! possible CSRF attack
-    #   raise Exception("CSRF Attack")
-
-    response = input()
-    token = client.session.fetch_token(code=response)
     return client
 
 
@@ -65,9 +40,26 @@ def all_tasks_iter(client, workspace_gid):
             tasks_iter = client.tasks.find_all(params)
             yield from tasks_iter
 
+@st.cache(
+    show_spinner=False,
+    suppress_st_warning=True,
+    allow_output_mutation=True,
+)
+def get_client():
+    client = init_client()
+    token = client.session.fetch_token(code=url_params['code'][0])
+    # if request.params['state'] == state:
+    #   token = client.session.fetch_token(code=request.params['code'])
+    #   # ...
+    # else:
+    #   # error! possible CSRF attack
+    #   raise Exception("CSRF Attack")
+    return client
+
 
 @st.cache(show_spinner=False)
-def get_data(client, workspace_gid):
+def get_data(workspace_gid):
+    client = get_client()
     tasks_iter = all_tasks_iter(client, workspace_gid)
 
     data = pd.DataFrame(tasks_iter)
@@ -83,29 +75,38 @@ def get_data(client, workspace_gid):
 
 
 if __name__ == '__main__':
-    client = authorize_client()
-    me = client.users.get_user('me')
-    st.write(f"Authenticated as {me['name']} ({me['email']})")
+    url_params = st.experimental_get_query_params()
+    #st.write(url_params)
 
-    workspaces = me['workspaces']
-    workspaces_map = {w['gid']: w['name'] for w in workspaces}
-    workspace_gid = st.selectbox(
-        label='Workspace',
-        options=workspaces_map.keys(),
-        format_func=lambda gid: workspaces_map[gid],
-    )
+    if not url_params.get('code', False):
+        client = init_client()
+        url, state = client.session.authorization_url()
+        st.markdown(f'<a href="{url}" target="_self">Authorize Asana</a>', unsafe_allow_html=True)
+    else:
+        client = get_client()
 
-    data, daily_counts = get_data(client, workspace_gid)
-    date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
-    date_low, date_high = st.slider(
-        label='Date Range',
-        min_value=date_min,
-        max_value=date_max,
-        value=(date_max - relativedelta(months=1), date_max)
-    )
-    #st.write(data)
+        me = client.users.get_user('me')
+        st.write(f"Authenticated as {me['name']} ({me['email']})")
 
-    fig = px.line(daily_counts[(date_low <= daily_counts.index) & (daily_counts.index <= date_max)])
-    st.plotly_chart(fig)
+        workspaces = me['workspaces']
+        workspaces_map = {w['gid']: w['name'] for w in workspaces}
+        workspace_gid = st.selectbox(
+            label='Workspace',
+            options=workspaces_map.keys(),
+            format_func=lambda gid: workspaces_map[gid],
+        )
+
+        data, daily_counts = get_data(workspace_gid)
+        date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
+        date_low, date_high = st.slider(
+            label='Date Range',
+            min_value=date_min,
+            max_value=date_max,
+            value=(date_max - relativedelta(months=1), date_max)
+        )
+        #st.write(data)
+
+        fig = px.line(daily_counts[(date_low <= daily_counts.index) & (daily_counts.index <= date_max)])
+        st.plotly_chart(fig)
 
 
