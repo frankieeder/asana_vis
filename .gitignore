@@ -160,3 +160,5 @@ cython_debug/
 .idea/
 
 asana_tasks.json
+
+.streamlit/secrets.toml
