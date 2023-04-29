@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_js_eval import get_page_location
 import asana
 import pandas as pd
 import plotly.express as px
@@ -7,13 +6,10 @@ from dateutil.relativedelta import relativedelta
 
 
 def init_client():
-    url = get_page_location()['origin']
-    # st.write(url)
-
     client = asana.Client.oauth(
         client_id=st.secrets.asana.client_id,
         client_secret=st.secrets.asana.client_secret,
-        redirect_uri=url, # 'http://localhost:8501/'
+        redirect_uri='http://localhost:8501/'
     )
     return client
 
@@ -40,6 +36,7 @@ def all_tasks_iter(client, workspace_gid):
             tasks_iter = client.tasks.find_all(params)
             yield from tasks_iter
 
+
 @st.cache(
     show_spinner=False,
     suppress_st_warning=True,
@@ -57,7 +54,7 @@ def get_client():
     return client
 
 
-@st.cache(show_spinner=False)
+@st.cache_data(show_spinner=False)
 def get_data(workspace_gid):
     client = get_client()
     tasks_iter = all_tasks_iter(client, workspace_gid)
@@ -81,6 +78,8 @@ if __name__ == '__main__':
     if not url_params.get('code', False):
         client = init_client()
         url, state = client.session.authorization_url()
+        st.write("# Asana Task Visualizer")
+        st.write('This app visualizes task completion in Asana! Click the link below to get started...')
         st.markdown(f'<a href="{url}" target="_self">Authorize Asana</a>', unsafe_allow_html=True)
     else:
         client = get_client()
