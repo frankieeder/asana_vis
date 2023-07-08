@@ -2,6 +2,7 @@ import streamlit as st
 import asana
 import pandas as pd
 import plotly.express as px
+import config as cfg
 from dateutil.relativedelta import relativedelta
 
 
@@ -89,9 +90,11 @@ if __name__ == '__main__':
 
         workspaces = me['workspaces']
         workspaces_map = {w['gid']: w['name'] for w in workspaces}
+        workspaces_gids = list(workspaces_map.keys())
         workspace_gid = st.selectbox(
             label='Workspace',
-            options=workspaces_map.keys(),
+            options=workspaces_gids,
+            index=workspaces_gids.index(cfg.DEFAULT_WORKSPACE_GID_STR),
             format_func=lambda gid: workspaces_map[gid],
         )
 
