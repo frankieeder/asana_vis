@@ -3,4 +3,4 @@ pandas
 plotly
 asana
 oauthlib
-dateutil
+python-dateutil
