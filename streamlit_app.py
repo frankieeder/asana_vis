@@ -63,13 +63,24 @@ def get_client():
     return client
 
 
+def tag_in_tags(tag_gid):
+    def tag_finder(tags):
+        return any(t['gid'] == tag_gid for t in tags)
+    return tag_finder
+
+
 def get_data(workspace_gid):
     tasks = all_tasks_list(workspace_gid)
 
     data = pd.DataFrame(tasks)
     data['created_at'] = pd.to_datetime(data['created_at'])
     data['completed_at'] = pd.to_datetime(data['completed_at'])
-    # st.write(data)
+    data['tag_for_weighting'] = ''
+    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_SHORT.id)), 'tag_for_weighting'] = 'Short'
+    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_MEDIUM.id)), 'tag_for_weighting'] = 'Medium'
+    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_LONG.id)), 'tag_for_weighting'] = 'Long'
+    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_DAILY.id)), 'tag_for_weighting'] = 'Daily'
+    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_SELF_CARE.id)), 'tag_for_weighting'] = 'Self Care'
 
     daily_counts = data.groupby(pd.to_datetime(data.completed_at.dt.date))['gid'].count()
     daily_counts = daily_counts.resample('D').mean()
