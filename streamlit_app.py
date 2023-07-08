@@ -33,10 +33,17 @@ def all_tasks_iter(client, workspace_gid):
             params = {
                 'project': project_gid,
                 'limit': 100,
-                'opt_fields': ['name', 'completed', 'created_at', 'completed_at', 'assignee']
+                'opt_fields': ['name', 'completed', 'created_at', 'completed_at', 'assignee', 'completed_by', 'tags']
             }
             tasks_iter = client.tasks.find_all(params)
             yield from tasks_iter
+
+
+@st.cache_data(show_spinner=False)
+def all_tasks_list(workspace_gid):
+    client = get_client()
+    tasks = list(all_tasks_iter(client, workspace_gid))
+    return tasks
 
 
 @st.cache(
@@ -56,12 +63,10 @@ def get_client():
     return client
 
 
-@st.cache_data(show_spinner=False)
 def get_data(workspace_gid):
-    client = get_client()
-    tasks_iter = all_tasks_iter(client, workspace_gid)
+    tasks = all_tasks_list(workspace_gid)
 
-    data = pd.DataFrame(tasks_iter)
+    data = pd.DataFrame(tasks)
     data['created_at'] = pd.to_datetime(data['created_at'])
     data['completed_at'] = pd.to_datetime(data['completed_at'])
     # st.write(data)
@@ -104,6 +109,7 @@ if __name__ == '__main__':
 
             data, daily_counts = get_data(workspace_gid)
             st.write(data)
+            st.write(data.loc[data['tags'].str.len() > 1].iloc[0]['tags'])
             date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
             date_low, date_high = st.slider(
                 label='Date Range',
@@ -113,7 +119,9 @@ if __name__ == '__main__':
             )
             # st.write(data)
 
-            fig = px.area(daily_counts[(date_low <= daily_counts.index) & (daily_counts.index <= date_max)])
+            is_in_date_range = (date_low <= daily_counts.index) & (daily_counts.index <= date_max)
+            daily_counts_in_date_range = daily_counts[is_in_date_range]
+            fig = px.area(daily_counts_in_date_range)
             st.plotly_chart(fig)
         except oauthlib.oauth2.InvalidGrantError as e:
             prompt_login()
