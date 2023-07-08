@@ -97,13 +97,9 @@ def get_data(workspace_gid):
 
     daily_counts = data.groupby(pd.to_datetime(data.completed_at.dt.date))['tag_for_weighting'].value_counts()
     daily_counts = daily_counts.reset_index()
-    st.write(daily_counts)
     daily_counts = daily_counts.pivot(index='completed_at', columns='tag_for_weighting')['count']
-    st.write(daily_counts)
     daily_counts = daily_counts.resample('D').mean()
-    st.write(daily_counts)
     daily_counts = daily_counts.fillna(0)
-    st.write(daily_counts)
 
     return data, daily_counts
 
@@ -118,7 +114,6 @@ def prompt_login():
 
 if __name__ == '__main__':
     url_params = st.experimental_get_query_params()
-    #st.write(url_params)
 
     if url_params.get('code', False):
         try:
@@ -138,8 +133,6 @@ if __name__ == '__main__':
             )
 
             data, daily_counts = get_data(workspace_gid)
-            st.write(data)
-            st.write(data.loc[data['tags'].str.len() > 1].iloc[0]['tags'])
             date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
             date_low, date_high = st.slider(
                 label='Date Range',
@@ -147,7 +140,6 @@ if __name__ == '__main__':
                 max_value=date_max,
                 value=(date_max - relativedelta(months=6), date_max)
             )
-            # st.write(data)
 
             is_in_date_range = (date_low <= daily_counts.index) & (daily_counts.index <= date_max)
             daily_counts_in_date_range = daily_counts[is_in_date_range]
