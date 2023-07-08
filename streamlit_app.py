@@ -26,6 +26,19 @@ def all_tasks_iter(client, workspace_gid):
     #         opt_fields=['name', 'completed', 'created_at', 'completed_at'],
     #     )
     # )
+
+    # GET USER TASK LIST
+    with st.spinner(f"Collecting personal tasks..."):
+        user_task_list = client.user_task_lists.find_by_user('me', params=dict(workspace=workspace_gid))
+        params = {
+            'user_task_list': user_task_list['gid'],
+            'limit': 100,
+            'opt_fields': ['name', 'completed', 'created_at', 'completed_at', 'assignee', 'completed_by', 'tags']
+        }
+        current_user_task_list = client.tasks.find_all(params)
+        yield from current_user_task_list
+
+    # GET FROM ALL PROJECTS
     projects = client.projects.get_projects(dict(workspace=workspace_gid, limit=100))
     for project in projects:
         project_gid = project['gid']
