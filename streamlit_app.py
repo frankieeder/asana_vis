@@ -59,6 +59,7 @@ def all_tasks_list(workspace_gid):
     return tasks
 
 
+# TODO: Unsafe, global
 @st.cache_resource(show_spinner=False)
 def get_client():
     client = init_client()
