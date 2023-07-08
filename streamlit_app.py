@@ -96,16 +96,17 @@ if __name__ == '__main__':
         )
 
         data, daily_counts = get_data(workspace_gid)
+        #st.write(data)
         date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
         date_low, date_high = st.slider(
             label='Date Range',
             min_value=date_min,
             max_value=date_max,
-            value=(date_max - relativedelta(months=1), date_max)
+            value=(date_max - relativedelta(months=6), date_max)
         )
         #st.write(data)
 
-        fig = px.line(daily_counts[(date_low <= daily_counts.index) & (daily_counts.index <= date_max)])
+        fig = px.area(daily_counts[(date_low <= daily_counts.index) & (daily_counts.index <= date_max)])
         st.plotly_chart(fig)
 
 
