@@ -59,11 +59,7 @@ def all_tasks_list(workspace_gid):
     return tasks
 
 
-@st.cache(
-    show_spinner=False,
-    suppress_st_warning=True,
-    allow_output_mutation=True,
-)
+@st.cache_resource(show_spinner=False)
 def get_client():
     client = init_client()
     token = client.session.fetch_token(code=url_params['code'][0])
@@ -134,16 +130,23 @@ if __name__ == '__main__':
 
             data, daily_counts = get_data(workspace_gid)
             date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
+
+            # Recent Week
+            st.write("# Past Week")
+            fig = px.area(daily_counts[(date_max - relativedelta(weeks=1)) <= daily_counts.index])
+            st.plotly_chart(fig)
+
+            # Selected Timeframe
+            st.write("# Select Timeframe")
             date_low, date_high = st.slider(
                 label='Date Range',
                 min_value=date_min,
                 max_value=date_max,
-                value=(date_max - relativedelta(months=6), date_max)
+                value=(date_max - relativedelta(months=1), date_max)
             )
 
-            is_in_date_range = (date_low <= daily_counts.index) & (daily_counts.index <= date_max)
-            daily_counts_in_date_range = daily_counts[is_in_date_range]
-            fig = px.area(daily_counts_in_date_range)
+            is_in_selected_date_range = (date_low <= daily_counts.index) & (daily_counts.index <= date_max)
+            fig = px.area(daily_counts[is_in_selected_date_range])
             st.plotly_chart(fig)
         except oauthlib.oauth2.InvalidGrantError as e:
             prompt_login()
