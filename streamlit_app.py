@@ -117,5 +117,6 @@ if __name__ == '__main__':
             st.plotly_chart(fig)
         except oauthlib.oauth2.InvalidGrantError as e:
             prompt_login()
+            st.error("Code invalid, please log in again.")
     else:
         prompt_login()
