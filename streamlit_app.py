@@ -1,5 +1,6 @@
 import streamlit as st
 import asana
+import oauthlib
 import pandas as pd
 import plotly.express as px
 import config as cfg
@@ -72,44 +73,49 @@ def get_data(workspace_gid):
     return data, daily_counts
 
 
+def prompt_login():
+    client = init_client()
+    url, state = client.session.authorization_url()
+    st.write("# Asana Task Visualizer")
+    st.write('This app visualizes task completion in Asana! Click the link below to get started...')
+    st.markdown(f'<a href="{url}" target="_self">Authorize Asana</a>', unsafe_allow_html=True)
+
+
 if __name__ == '__main__':
     url_params = st.experimental_get_query_params()
     #st.write(url_params)
 
-    if not url_params.get('code', False):
-        client = init_client()
-        url, state = client.session.authorization_url()
-        st.write("# Asana Task Visualizer")
-        st.write('This app visualizes task completion in Asana! Click the link below to get started...')
-        st.markdown(f'<a href="{url}" target="_self">Authorize Asana</a>', unsafe_allow_html=True)
+    if url_params.get('code', False):
+        try:
+            client = get_client()
+
+            me = client.users.get_user('me')
+            st.write(f"Authenticated as {me['name']} ({me['email']})")
+
+            workspaces = me['workspaces']
+            workspaces_map = {w['gid']: w['name'] for w in workspaces}
+            workspaces_gids = list(workspaces_map.keys())
+            workspace_gid = st.selectbox(
+                label='Workspace',
+                options=workspaces_gids,
+                index=workspaces_gids.index(cfg.DEFAULT_WORKSPACE_GID_STR),
+                format_func=lambda gid: workspaces_map[gid],
+            )
+
+            data, daily_counts = get_data(workspace_gid)
+            st.write(data)
+            date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
+            date_low, date_high = st.slider(
+                label='Date Range',
+                min_value=date_min,
+                max_value=date_max,
+                value=(date_max - relativedelta(months=6), date_max)
+            )
+            # st.write(data)
+
+            fig = px.area(daily_counts[(date_low <= daily_counts.index) & (daily_counts.index <= date_max)])
+            st.plotly_chart(fig)
+        except oauthlib.oauth2.InvalidGrantError as e:
+            prompt_login()
     else:
-        client = get_client()
-
-        me = client.users.get_user('me')
-        st.write(f"Authenticated as {me['name']} ({me['email']})")
-
-        workspaces = me['workspaces']
-        workspaces_map = {w['gid']: w['name'] for w in workspaces}
-        workspaces_gids = list(workspaces_map.keys())
-        workspace_gid = st.selectbox(
-            label='Workspace',
-            options=workspaces_gids,
-            index=workspaces_gids.index(cfg.DEFAULT_WORKSPACE_GID_STR),
-            format_func=lambda gid: workspaces_map[gid],
-        )
-
-        data, daily_counts = get_data(workspace_gid)
-        #st.write(data)
-        date_min, date_max = daily_counts.index.min().to_pydatetime(), daily_counts.index.max().to_pydatetime()
-        date_low, date_high = st.slider(
-            label='Date Range',
-            min_value=date_min,
-            max_value=date_max,
-            value=(date_max - relativedelta(months=6), date_max)
-        )
-        #st.write(data)
-
-        fig = px.area(daily_counts[(date_low <= daily_counts.index) & (daily_counts.index <= date_max)])
-        st.plotly_chart(fig)
-
-
+        prompt_login()
