@@ -73,7 +73,7 @@ def get_client():
     return client
 
 
-def tag_in_tags(tag_gid):
+def tag_is_in_tags(tag_gid):
     def tag_finder(tags):
         return any(t['gid'] == tag_gid for t in tags)
     return tag_finder
@@ -86,11 +86,11 @@ def get_data(workspace_gid):
     data['created_at'] = pd.to_datetime(data['created_at'])
     data['completed_at'] = pd.to_datetime(data['completed_at'])
     data['tag_for_weighting'] = 'Unknown'
-    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_SHORT.id)), 'tag_for_weighting'] = cfg.TAG_SHORT.name
-    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_MEDIUM.id)), 'tag_for_weighting'] = cfg.TAG_MEDIUM.name
-    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_LONG.id)), 'tag_for_weighting'] = cfg.TAG_LONG.name
-    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_DAILY.id)), 'tag_for_weighting'] = cfg.TAG_DAILY.name
-    data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_SELF_CARE.id)), 'tag_for_weighting'] = cfg.TAG_SELF_CARE.name
+    data.loc[data['tags'].apply(tag_is_in_tags(cfg.TAG_SHORT.id)), 'tag_for_weighting'] = cfg.TAG_SHORT.name
+    data.loc[data['tags'].apply(tag_is_in_tags(cfg.TAG_MEDIUM.id)), 'tag_for_weighting'] = cfg.TAG_MEDIUM.name
+    data.loc[data['tags'].apply(tag_is_in_tags(cfg.TAG_LONG.id)), 'tag_for_weighting'] = cfg.TAG_LONG.name
+    data.loc[data['tags'].apply(tag_is_in_tags(cfg.TAG_DAILY.id)), 'tag_for_weighting'] = cfg.TAG_DAILY.name
+    data.loc[data['tags'].apply(tag_is_in_tags(cfg.TAG_SELF_CARE.id)), 'tag_for_weighting'] = cfg.TAG_SELF_CARE.name
 
     daily_counts = data.groupby(pd.to_datetime(data.completed_at.dt.date))['tag_for_weighting'].value_counts()
     daily_counts = daily_counts.reset_index()
