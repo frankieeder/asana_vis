@@ -88,16 +88,22 @@ def get_data(workspace_gid):
     data = pd.DataFrame(tasks)
     data['created_at'] = pd.to_datetime(data['created_at'])
     data['completed_at'] = pd.to_datetime(data['completed_at'])
-    data['tag_for_weighting'] = ''
+    data['tag_for_weighting'] = 'Unknown'
     data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_SHORT.id)), 'tag_for_weighting'] = 'Short'
     data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_MEDIUM.id)), 'tag_for_weighting'] = 'Medium'
     data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_LONG.id)), 'tag_for_weighting'] = 'Long'
     data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_DAILY.id)), 'tag_for_weighting'] = 'Daily'
     data.loc[data['tags'].apply(tag_in_tags(cfg.TAG_SELF_CARE.id)), 'tag_for_weighting'] = 'Self Care'
 
-    daily_counts = data.groupby(pd.to_datetime(data.completed_at.dt.date))['gid'].count()
+    daily_counts = data.groupby(pd.to_datetime(data.completed_at.dt.date))['tag_for_weighting'].value_counts()
+    daily_counts = daily_counts.reset_index()
+    st.write(daily_counts)
+    daily_counts = daily_counts.pivot(index='completed_at', columns='tag_for_weighting')['count']
+    st.write(daily_counts)
     daily_counts = daily_counts.resample('D').mean()
+    st.write(daily_counts)
     daily_counts = daily_counts.fillna(0)
+    st.write(daily_counts)
 
     return data, daily_counts
 
